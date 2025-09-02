@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>2025 USA Congress Apportionment Diagram</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    .seat {
+      stroke: #999;
+      cursor: pointer;
+    }
+    .D {
+      fill: #1f77b4;
+    }
+    .R {
+      fill: #d62728;
+    }
+    .Other {
+      fill: grey;
+    }
+    .tooltip {
+      position: absolute;
+      background: white;
+      border: 1px solid #999;
+      padding: 5px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <h2>2025 USA Congress Election Apportionment Diagram</h2>
+  <div id="chart"></div>
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    const APIKEY = 'YOUR_CONGRESS_GOV_API_KEY'; // Replace with your API key
+    const MEMBERS_API = 'https://api.congress.gov/v3/members?congress=119';
+
+    const svgWidth = 800;
+    const seatSize = 20;
+    const seatsPerRow = 20;
+
+    const tooltip = d3.select("#tooltip");
+    const svg = d3.select("#chart").append("svg")
+      .attr("width", svgWidth)
+      .attr("height", 600);
+
+    // Fetch member data from congress.gov API
+    async function fetchMembers() {
+      const response = await fetch(MEMBERS_API, {
+        headers: {
+          'X-API-Key': APIKEY
+        }
+      });
+      if(!response.ok) {
+        throw new Error('Failed to fetch members');
+      }
+      const json = await response.json();
+      return json.members || json.results || [];
+    }
+
+    // Process members and create seat data
+    function processSeats(members) {
+      return members.map(member => {
+        return {
+          party: member.party || 'Other',
+          state: member.state || 'Unknown',
+          name: member.name || 'Unknown',
+        };
+      });
+    }
+
+    // Render the interactive apportionment diagram
+    function renderDiagram(seats) {
+      svg.selectAll("rect")
+        .data(seats)
+        .join("rect")
+        .attr("class", d => "seat " + d.party)
+        .attr("width", seatSize - 2)
+        .attr("height", seatSize - 2)
+        .attr("x", (_, i) => (i % seatsPerRow) * seatSize + 20)
+        .attr("y", (_, i) => Math.floor(i / seatsPerRow) * seatSize + 20)
+        .on("mouseover", function(event, d) {
+          tooltip.style("opacity", 1)
+            .html(`<strong>${d.name}</strong><br/>State: ${d.state}<br/>Party: ${d.party}`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 30) + "px");
+        })
+        .on("mouseout", () => tooltip.style("opacity", 0));
+    }
+
+    // Main execution
+    fetchMembers()
+      .then(members => {
+        const seats = processSeats(members);
+        renderDiagram(seats);
+      })
+      .catch(error => console.error(error));
+  </script>
+</body>
+</html>
